@@ -58,6 +58,10 @@ static void signalBlock(void);
 static void signalUnblock(void);
 
 /********************** Internal Data Definition *****************************/
+static pthread_t ThreadHandle_controllerEmulator_tx;
+static pthread_t ThreadHandle_controllerEmulator_rx;
+static pthread_t ThreadHandle_interfaceService_tx;
+static pthread_t ThreadHandle_interfaceService_rx;
 static int socket_fd;
 static char buffer_right[COMM_BUFFER_SIZE];
 static char buffer_left[COMM_BUFFER_SIZE];
@@ -70,11 +74,6 @@ static pthread_mutex_t mutexData = PTHREAD_MUTEX_INITIALIZER;
 /********************** Internal Functions Definition ************************/
 static void threadsInit(void)
 {
-	pthread_t ThreadHandle_controllerEmulator_tx;
-	pthread_t ThreadHandle_controllerEmulator_rx;
-	pthread_t ThreadHandle_interfaceService_tx;
-	pthread_t ThreadHandle_interfaceService_rx;
-	
 	/* Create both threads: 1 for communication with Controller Emulator and 1 for communication with Interface Service */
 	pthread_create(&ThreadHandle_controllerEmulator_tx, NULL, thread_controllerEmulator_tx, NULL);
 	pthread_create(&ThreadHandle_controllerEmulator_rx, NULL, thread_controllerEmulator_rx, NULL);
@@ -309,9 +308,21 @@ static void signalHandlersInit(void)
 
 static void signalHandlerSIGINT(void)
 {
+	void* ret;
+	
 	/* Signal handler for SIGINT */
 	write(STDOUT_FILENO, "\nSIGINT signal received.\r\n", 26);
 	write(STDOUT_FILENO, "Serial Service closed.\r\n\n", 25);
+	
+	/* Cancel threads and free resources */
+	pthread_cancel(ThreadHandle_controllerEmulator_tx);
+	pthread_join(ThreadHandle_controllerEmulator_tx, &ret);
+	pthread_cancel(ThreadHandle_controllerEmulator_rx);
+	pthread_join(ThreadHandle_controllerEmulator_rx, &ret);
+	pthread_cancel(ThreadHandle_interfaceService_tx);
+	pthread_join(ThreadHandle_interfaceService_tx, &ret);
+	pthread_cancel(ThreadHandle_interfaceService_rx);
+	pthread_join(ThreadHandle_interfaceService_rx, &ret);
 	
 	/* Close connection with Controller Emulator */
 	serial_close();
@@ -324,9 +335,21 @@ static void signalHandlerSIGINT(void)
 
 static void signalHandlerSIGTERM(void)
 {
+	void* ret;
+
 	/* Signal handler for SIGTERM */
 	write(STDOUT_FILENO, "\nSIGTERM signal received.\r\n", 27);
 	write(STDOUT_FILENO, "Serial Service closed.\r\n\n", 25);
+	
+	/* Cancel threads and free resources */
+	pthread_cancel(ThreadHandle_controllerEmulator_tx);
+	pthread_join(ThreadHandle_controllerEmulator_tx, &ret);
+	pthread_cancel(ThreadHandle_controllerEmulator_rx);
+	pthread_join(ThreadHandle_controllerEmulator_rx, &ret);
+	pthread_cancel(ThreadHandle_interfaceService_tx);
+	pthread_join(ThreadHandle_interfaceService_tx, &ret);
+	pthread_cancel(ThreadHandle_interfaceService_rx);
+	pthread_join(ThreadHandle_interfaceService_rx, &ret);
 	
 	/* Close connection with Controller Emulator */
 	serial_close();
