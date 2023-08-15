@@ -140,16 +140,20 @@ static void* thread_interfaceService_rx(void* arg)
 
 static void serialRead(void)
 {
-	static int bytes = 0;
+	int bytes = 0;
 	
 	/* Write serial port */
 	bytes = serial_receive(buffer_right, sizeof(buffer_right));
 	
 	if(bytes > 0)
 	{
-		//buffer_right[8] = 0;
-		
-		bufferRightFlag = SET;
+		/* Lock mutex for shared resource */
+		pthread_mutex_lock(&mutexData);
+		{
+			bufferRightFlag = SET;
+		}
+		/* Unlock mutex for shared resource */
+		pthread_mutex_unlock(&mutexData);	
 			
 		printf("RECEIVED from CONTROLLER EMULATOR: %ld bytes: %s", sizeof(buffer_right), buffer_right);
 	}
@@ -161,9 +165,15 @@ static void serialWrite(void)
 	if(SET == bufferLeftFlag)
 	{
 		serial_send(buffer_left, sizeof(buffer_left));
-		
-		bufferLeftFlag = RESET;
-			
+
+		/* Lock mutex for shared resource */
+		pthread_mutex_lock(&mutexData);
+		{		
+			bufferLeftFlag = RESET;
+		}	
+		/* Unlock mutex for shared resource */
+		pthread_mutex_unlock(&mutexData);
+					
 		printf("WROTE to CONTROLLER EMULATOR: %ld bytes: %s\n", sizeof(buffer_left), buffer_left);
 	}
 }
@@ -218,7 +228,7 @@ static void socketInit(char* ip, int port)
 
 static void socketRead(void)
 {
-	static int bytes = 0;
+	int bytes = 0;
 	
 	/* Read socket */
 	bytes  = read(socket_fd, buffer_left, sizeof(buffer_left));	
@@ -230,9 +240,13 @@ static void socketRead(void)
 	
 	if(bytes > 0)
 	{
-		//buffer_left[8] = 0;
-		
-		bufferLeftFlag = SET;
+		/* Lock mutex for shared resource */
+		pthread_mutex_lock(&mutexData);
+		{
+			bufferLeftFlag = SET;
+		}
+		/* Unlock mutex for shared resource */
+		pthread_mutex_unlock(&mutexData);			
 
 		printf("RECEIVED from INTERFACE SERVICE: %ld bytes: %s", sizeof(buffer_left), buffer_left);
 	}
@@ -245,7 +259,13 @@ static void socketWrite(void)
 	{
 		write(socket_fd, buffer_right, sizeof(buffer_right));
 
-		bufferRightFlag = RESET;
+		/* Lock mutex for shared resource */
+		pthread_mutex_lock(&mutexData);
+		{
+			bufferRightFlag = RESET;
+		}
+		/* Unlock mutex for shared resource */
+		pthread_mutex_unlock(&mutexData);				
 	
 		printf("WROTE to INTERFACE SERVICE: %ld bytes: %s\n", sizeof(buffer_right), buffer_right);
 	}
@@ -290,7 +310,8 @@ static void signalHandlersInit(void)
 static void signalHandlerSIGINT(void)
 {
 	/* Signal handler for SIGINT */
-	printf("SIGINT signal received.\r\n\n");
+	write(STDOUT_FILENO, "\nSIGINT signal received.\r\n", 26);
+	write(STDOUT_FILENO, "Serial Service closed.\r\n\n", 25);
 	
 	/* Close connection with Controller Emulator */
 	serial_close();
@@ -304,7 +325,8 @@ static void signalHandlerSIGINT(void)
 static void signalHandlerSIGTERM(void)
 {
 	/* Signal handler for SIGTERM */
-	printf("SIGTERM signal received.\r\n\n");
+	write(STDOUT_FILENO, "\nSIGTERM signal received.\r\n", 27);
+	write(STDOUT_FILENO, "Serial Service closed.\r\n\n", 25);
 	
 	/* Close connection with Controller Emulator */
 	serial_close();
